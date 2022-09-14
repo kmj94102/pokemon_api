@@ -82,12 +82,40 @@ def read_pokemon(number: str):
     pokemon = session.query(PokemonTable).filter(PokemonTable.number == number).first()
     beforInfo = read_pokemon_dot_image(pokemon.index -1)
     after = read_pokemon_dot_image(pokemon.index + 1)
+    evolution = evolution_info(number)
+
+    return {"info": pokemon, "before": beforInfo, "after": after, "evolution": evolution}
+
+def evolution_info(number: str):
     pokemon1 = aliased(PokemonTable)
     pokemon2 = aliased(PokemonTable)
     evolution = session.query(pokemon1.dotImage.label('beforeDot'), pokemon1.dotShinyImage.label('beforeShinyDot'), pokemon2.dotImage.label('afterDot'), pokemon2.dotShinyImage.label('afterShinyDot'), EvolutionTypeTable.image.label('evolutionImage'), EvolutionTable.evolutionConditions)\
         .filter(EvolutionTable.numbers.like(f"%{number}%"), EvolutionTable.beforeNum == pokemon1.number, EvolutionTable.afterNum == pokemon2.number, EvolutionTypeTable.name == EvolutionTable.evolutionType).all()
 
-    return {"info": pokemon, "before": beforInfo, "after": after, "evolution": evolution}
+    return evolution
+
+# 진화 정보 조회
+@app.get("/pokemon/evolution/{number}")
+def read_pokemon_evolution(number: str):
+    pokemon1 = aliased(PokemonTable)
+    pokemon2 = aliased(PokemonTable)
+    evolution = session.query(EvolutionTable.index, EvolutionTable.beforeNum, EvolutionTable.afterNum, EvolutionTable.evolutionType, EvolutionTable.evolutionConditions, EvolutionTable.numbers, pokemon1.dotImage.label('beforeImage'), pokemon2.dotImage.label('afterImage'))\
+        .filter(EvolutionTable.numbers.like(f"%{number}%"), EvolutionTable.beforeNum == pokemon1.number, EvolutionTable.afterNum == pokemon2.number).all()
+    return evolution
+
+#진화 정보 수정
+@app.post("/pokemon/evolution/update")
+def update_pokemon_evolution(items: List[Evolution]):
+    for item in items:
+        update = session.query(EvolutionTable).filter(item.index == EvolutionTable.index)\
+            .update({'numbers': item.numbers, 'beforeNum': item.beforeNum, 'afterNum': item.afterNum, 'evolutionType' : item.evolutionType, 'evolutionConditions': item.evolutionConditions})
+
+        if(update == 0):
+            result = create_evolution(item, 0)
+        else :
+            result = "true"
+    session.commit()
+    return result
 
 # 특정 포켓몬 이미지 정보 조회 (인덱스)
 @app.get("/pokemon/number/image/index/{index}")
@@ -175,4 +203,4 @@ async def create_evolution_list(items: List[Evolution]):
 @app.post("/test")
 async def test():
 
-    return result   
+    return result

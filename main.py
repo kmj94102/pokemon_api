@@ -11,7 +11,7 @@ from sqlalchemy.orm import aliased
 from itertools import combinations
 
 from db import session
-from model import PokemonTable, Pokemon, EvolutionTable, Evolution, EvolutionTypeTable, EvolutionType, CharacteristicTable, Characteristic, SearchInfo
+from model import PokemonTable, Pokemon, EvolutionTable, Evolution, EvolutionTypeTable, EvolutionType, CharacteristicTable, Characteristic, SearchInfo, NewDexItem, ArecuesDexTable
 
 app = FastAPI()
 
@@ -105,17 +105,20 @@ def read_pokemon_evolution(number: str):
 
 #진화 정보 수정
 @app.post("/pokemon/evolution/update")
-def update_pokemon_evolution(items: List[Evolution]):
+def update_pokemon_evolution(items: List[Evolution], removeItems: List[int]):
+    # 수정 및 추가
     for item in items:
         update = session.query(EvolutionTable).filter(item.index == EvolutionTable.index)\
             .update({'numbers': item.numbers, 'beforeNum': item.beforeNum, 'afterNum': item.afterNum, 'evolutionType' : item.evolutionType, 'evolutionConditions': item.evolutionConditions})
 
         if(update == 0):
-            result = create_evolution(item, 0)
-        else :
-            result = "true"
+            create_evolution(item, 0)
+
+    # 삭제
+    session.query(EvolutionTable).filter(EvolutionTable.index.in_(removeItems)).delete()
+    
     session.commit()
-    return result
+    return "업데이트 성공"
 
 # 특정 포켓몬 이미지 정보 조회 (인덱스)
 @app.get("/pokemon/number/image/index/{index}")
@@ -204,3 +207,31 @@ async def create_evolution_list(items: List[Evolution]):
 async def test():
 
     return result
+
+@app.post("/newDex")
+async def create_arceus_dex(item: NewDexItem):
+    pokemonInfo = session.query(PokemonTable).filter(PokemonTable.number == item.allDexNumber).first()
+    newInfo = pokemonToNewDexInfo(pokemonInfo, item)
+    session.add(newInfo)
+    session.commit()
+
+    return f"{newInfo.name} 추가 완료"
+
+def pokemonToNewDexInfo(info: PokemonTable, item: NewDexItem):
+    if(item.type == 'A'):
+        newDex = ArecuesDexTable()
+        newDex.number = item.number
+        newDex.allDexNumber = info.number
+        newDex.name = info.name
+        newDex.status = info.status
+        newDex.classification = info.classification
+        newDex.characteristic = info.characteristic
+        newDex.attribute = info.attribute
+        newDex.dotImage = info.dotImage
+        newDex.dotShinyImage = info.dotShinyImage
+        newDex.image = info.image
+        newDex.shinyImage = info.shinyImage
+        newDex.description = info.description
+        newDex.generation = info.generation
+
+    return newDex

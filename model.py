@@ -117,6 +117,10 @@ class NewDexItem(BaseModel):
     allDexNumber: str = None
     type: str = None
 
+class SelectInfo(BaseModel):
+    startNum: str = None
+    endNum: str = None
+
 def main():
     # Table 없으면 생성
     Base.metadata.create_all(bind=ENGINE)

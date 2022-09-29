@@ -11,7 +11,8 @@ from sqlalchemy.orm import aliased
 from itertools import combinations
 
 from db import session
-from model import PokemonTable, Pokemon, EvolutionTable, Evolution, EvolutionTypeTable, EvolutionType, CharacteristicTable, Characteristic, SearchInfo, NewDexItem, ArecuesDexTable
+from model import PokemonTable, Pokemon, EvolutionTable, Evolution, EvolutionTypeTable, EvolutionType,\
+    CharacteristicTable, Characteristic, SearchInfo, NewDexItem, ArecuesDexTable, SelectInfo
 
 app = FastAPI()
 
@@ -203,13 +204,18 @@ async def create_evolution_list(items: List[Evolution]):
 
     return result
 
+@app.post("/evolutions/select")
+async def select_evolution_list(info: SelectInfo):
+    result = session.query(EvolutionTable).filter(EvolutionTable.index.between(int(info.startNum), int(info.endNum))).all()
+    return result
+
 @app.post("/test")
 async def test():
 
     return result
 
 @app.post("/newDex")
-async def create_arceus_dex(item: NewDexItem):
+async def create_new_dex(item: NewDexItem):
     pokemonInfo = session.query(PokemonTable).filter(PokemonTable.number == item.allDexNumber).first()
     newInfo = pokemonToNewDexInfo(pokemonInfo, item)
     session.add(newInfo)
@@ -235,3 +241,10 @@ def pokemonToNewDexInfo(info: PokemonTable, item: NewDexItem):
         newDex.generation = info.generation
 
     return newDex
+
+@app.post("/newDex/select")
+async def select_new_dex(info: SelectInfo):
+    dexInfo = session.query(ArecuesDexTable).filter(ArecuesDexTable.number.between(info.startNum, info.endNum)).all()
+    lastIndex = session.query(ArecuesDexTable.number).order_by(ArecuesDexTable.number.desc()).first()
+
+    return {"lastIndex" : lastIndex.number, "info": dexInfo}
